@@ -11,7 +11,7 @@ from typer.cli import callback
 from aiogram import F
 from aiogram.enums import ParseMode
 
-TOKEN = "7849553949:AAFTjNHqFAaGgFs4lJj4gQMHx1fsAaIJk_s"
+TOKEN = ""
 
 
 logging.basicConfig(level=logging.INFO)
