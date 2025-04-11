@@ -1,31 +1,28 @@
 import asyncio
-import logging
-from idlelib.undo import Command
 from aiogram.filters import Command
-from turtledemo.penrose import start
-import pandas as pd
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, FSInputFile
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, FSInputFile, LabeledPrice, PreCheckoutQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from typer.cli import callback
 from aiogram import F
 from aiogram.enums import ParseMode
+from config import BOT_TOKEN, PAYMENT_TOKEN
 
-TOKEN = ""
+TOKEN = BOT_TOKEN
+payment = PAYMENT_TOKEN
 
 
-logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
+CURENCCY = "XTR"
 
 #start
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     kb = [
-       [types.KeyboardButton(text="/menu")]
+       [types.KeyboardButton(text="/help")]
     ]
     keyboard = types.ReplyKeyboardMarkup(keyboard=kb)
-    await message.answer("Вот краткая инструкция: <b>/menu</b> - выбор сервиса," ,
+    await message.answer("Учебный проект, первоначально создан для удобства вывода огромных данных.\n Чтобы ознакомиться с возможностями бота переходите к /help",
                          parse_mode=ParseMode.HTML
     )
 
@@ -33,7 +30,12 @@ async def cmd_start(message: types.Message):
 #help
 @dp.message(Command("help"))
 async def cmd_help(message:types.Message):
-    await message.answer("Бот создан как учебный проект! Основной функционал заключается в выводе файла с вакансиями с разных сервисов поиска работы.")
+    kb = [
+        [types.KeyboardButton(text="/donate")],
+        [types.KeyboardButton(text="/menu")]
+    ]
+    keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+    await message.answer("Выберите действия: \n /donate - поддержка автора! \n /menu - Выбор сервиса вывода данных ", reply_markup=keyboard)
 
 
 #menu
@@ -41,7 +43,7 @@ async def cmd_help(message:types.Message):
 async def cmd_menu(message: types.Message):
     builder = InlineKeyboardBuilder()
     builder.add(types.InlineKeyboardButton(
-        text="хочу work.ua",
+        text="work.ua",
         callback_data ="file_value")
     )
     await message.answer(
@@ -58,6 +60,42 @@ async def send_fiel(callback: types.CallbackQuery):
 async def Hi_message(message: types.Message):
     await message.answer(f"Привет, <b>{message.from_user.full_name}</b>",
     parse_mode=ParseMode.HTML)
+
+def payment_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text=f"Оплатить 1 ", pay=True)
+
+    return builder.as_markup()
+
+
+#donate
+@dp.message(Command("donate"))
+async def cmd_donate(message: types.Message):
+    price = [LabeledPrice(label=CURENCCY, amount=5)]
+    await bot.send_invoice(
+        chat_id=message.chat.id,
+        title="Поддержка донатом!)",
+        description="5 звезд",
+        payload="channel_support",
+        provider_token=payment,
+        currency=CURENCCY,
+        prices=price,
+        start_parameter="tester-bot",
+        reply_markup=payment_keyboard(),
+    )
+
+@dp.pre_checkout_query()
+async def pre_checkout_handler(pre_checkout_query: types.PreCheckoutQuery):
+    await pre_checkout_query.answer(ok=True)
+
+
+@dp.message(F.successful_payment)
+async def process_successful_payment(message: types.Message):
+    await message.answer(f"{message.successful_payment.telegram_payment_charge_id}")
+
+@dp.message(F.content_type == types.ContentType.SUCCESSFUL_PAYMENT)
+async def succes(message: types.Message):
+    await message.answer(f"Операция прошла успешно: {message.successful_payment.order_info}")
 
 
 #main
